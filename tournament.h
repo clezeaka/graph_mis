@@ -46,7 +46,7 @@ struct LeafClass
   volatile unsigned int counter;// TODO use int for counter and aux_counter (init counter), use top bit of counter for mutex
   volatile unsigned short mutex;
 
-  inline unsigned long update_leaf_counter(unsigned long _bitColor);
+  inline signed long update_leaf_counter(unsigned long _bitColor);
 
   void print_leaf();
 };

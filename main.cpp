@@ -12,6 +12,7 @@
 #include "ordering.h"
 #include "graphIO.h"
 #include "serial_mis.h"
+#include "async_mis.h"
 
 
 void validate_mis(int* mis_array) {
@@ -39,9 +40,16 @@ void validate_mis(int* mis_array) {
 
 int main(int argc, char **argv)
 {
-  if (argc != 2) {
-    printf("Invalid args. Usage: ./main <file>");
+  if (argc != 3) {
+    printf("Invalid args. Usage: ./main <file> <algorithm {serial, tournament}>");
   } else {
+    string algorithm = argv[2];
+    
+    if (!(algorithm.compare("serial") == 0 || algorithm.compare("tournament") == 0)) {
+      printf("Invalid argument for algorithm. Should be serial or tournament");
+      return 0;
+    }
+
     string inputname = argv[1];
     //sparseRowMajor<int,int> sparse_rep;
     // Parse the graph in .mtx or adjacency list representation.
@@ -63,7 +71,18 @@ int main(int argc, char **argv)
     }
     
     double color_start = tfk_get_time();
-    serial_mis(mis_array);
+    
+    if (algorithm.compare("serial") == 0){
+      serial_mis(mis_array);
+    } else if (algorithm.compare("tournament") == 0) {
+      unsigned int numEdges = (unsigned int) sparse_rep.Starts[sparse_rep.numRows];
+      Vertex* __vertices = (Vertex *) malloc(sizeof(Vertex)*sparse_rep.numRows);
+      unsigned char *__tournamentArray = (unsigned char *) malloc(numEdges);
+      compute_mis_tournament(mis_array, __vertices, __tournamentArray);
+    } else {
+      printf("Invalid argument for algorithm. Should be serial or tournament");
+    }
+    
     double color_end = tfk_get_time();
     printf("Time spent: %f \n", (color_end - color_start));
     

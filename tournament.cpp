@@ -22,18 +22,22 @@ inline signed long Vertex::update_local_counter(unsigned long _inMIS)
     }
 }
 
-inline unsigned long LeafClass::update_leaf_counter(unsigned long _bitColor)
+inline signed long LeafClass::update_leaf_counter(unsigned long _inMIS)
 {
     while( true ) {
         if(__sync_lock_test_and_set(&mutex, 1) == 0 ) {
-            bitColor |= _bitColor;
+            if(_inMIS == 1) {
+              counter = 0;
+              mutex = 0;
+              return 0;
+            }
             if( counter == 1 ) {
                 mutex = 0;
-                return bitColor;
+                return 1;
             } else {
                 counter--;
                 mutex = 0;
-                return 0L;
+                return -1;
             }
         } else {
             //while( mutex != 0 );
@@ -57,41 +61,50 @@ inline signed long Vertex::compete_in_tournament(
         unsigned long *bitColors = (unsigned long *) tournament;
         unsigned int index = (_hash & (size - 1));
         LeafClass *leaf = (LeafClass *) &(bitColors[size]);
-        bitColor = leaf[index].update_leaf_counter(bitColor);
-        if( bitColor > 0 ) { // compete in tournament
+        _inMIS = leaf[index].update_leaf_counter(_inMIS);
+        if( _inMIS != -1 ) { // compete in tournament
+            unsigned int type = 0;
+            if (_inMIS) {
+                type = 1; // lazy
+            } else {
+                type = 2; // eager
+            }
             index += size;
             while( index > 1 ) {
                 index = (index >> 1);
                 if( bitColors[index] != 0 ) {
-                    bitColor |= bitColors[index];
+
                 } else {
-                    unsigned long getAndSetResult = __sync_lock_test_and_set(&bitColors[index],bitColor);
-                    if( getAndSetResult != 0 ) { // I'm last (2 gladiators per slot)
-                        bitColor |= getAndSetResult;
+                    unsigned long getAndSetResult = __sync_lock_test_and_set(&bitColors[index], _inMIS);
+                    if( getAndSetResult != 0 || type == 2) { // Move up in the tournament
+                    
                     } else {
-                        return 0L;
+                        return -1;
                     }
                 }
             }
-            return bitColor;
+            return _inMIS;
         }
         else
             return 0L;
     }
 }
 
-inline void Vertex::color_vertex(
+inline void Vertex::mark_vertex(
     Vertex *_vertices,
     unsigned char *_tournamentArray,
+    int * mis_array,
     unsigned int *_neighbors,
     signed long _inMIS)
 {
     unsigned char *tournament = &_tournamentArray[(edgeIndex+7)&(~0x07)];
     if( numPredecessors == 0 ) {
         finalInMIS = 1;
+        mis_array[vertexID] = 1;
     }
     else {
         finalInMIS = _inMIS;
+        mis_array[vertexID] = _inMIS;
     }
     unsigned int *successors = &(_neighbors[edgeIndex]);
 
@@ -113,7 +126,7 @@ inline void Vertex::color_vertex(
             */
             signed long inMIS = _vertices[successors[i]].compete_in_tournament(hashValue, finalInMIS, _tournamentArray, successors[i]);
             if( inMIS != -1 ) {
-                cilk_spawn _vertices[successors[i]].color_vertex(_vertices, _tournamentArray, _neighbors, inMIS);
+                cilk_spawn _vertices[successors[i]].mark_vertex(_vertices, _tournamentArray, mis_array, _neighbors, inMIS);
             }
         }
     }
@@ -127,7 +140,7 @@ inline void Vertex::color_vertex(
             */
             signed long inMIS = _vertices[successors[i]].compete_in_tournament(hashValue, finalInMIS, _tournamentArray, successors[i]);
             if( inMIS != -1 ) {
-                _vertices[successors[i]].color_vertex(_vertices, _tournamentArray, _neighbors, inMIS);
+                _vertices[successors[i]].mark_vertex(_vertices, _tournamentArray, mis_array, _neighbors, inMIS);
             }
         }
     }
@@ -148,7 +161,7 @@ void Vertex::vertex_init(
     numSuccessors = 0;
     mutex = 0;
     counter = 0;
-    finalColor = 0L;
+    finalInMIS = 0L;
     edgeIndex = _neighborIndex;
     if(_numNeighbors == 0) return;
 
@@ -219,7 +232,7 @@ void Vertex::vertex_init(
 
 void Vertex::print_tournament(unsigned char *_tournamentArray, unsigned int _vertexID) {
     printf("vid: %8u hash: %8u pred: %7u succ: %7u\n", vertexID, hashValue,numPredecessors, numSuccessors);
-    printf("index: %8u cntr: %3u lgsz: %2u mtx: %2u bitColor: %#lx\n", edgeIndex, counter, logSize, mutex, finalColor);
+    printf("index: %8u cntr: %3u lgsz: %2u mtx: %2u bitColor: %#lx\n", edgeIndex, counter, logSize, mutex, finalInMIS);
 
     unsigned int numNeighbors = sparse_rep.Starts[_vertexID + 1] - sparse_rep.Starts[_vertexID];
 

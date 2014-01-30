@@ -59,10 +59,10 @@ class Vertex
 
 
   void vertex_init(Vertex *_vertices, unsigned char *_tournamentArray, unsigned int _vertexID,
-		  unsigned int *_neighbors, unsigned int _neighborIndex, unsigned int _numNeighbors, const ordering_method_t ordering_method);
-  inline unsigned long compete_in_tournament(unsigned int _hash, unsigned int _color, unsigned char *_tournamentArray, unsigned int _successorID);
-  inline void mark_vertex(Vertex *_vertices, unsigned char *_tournamentArray, unsigned int *_neighbors, unsigned long _bitColor);
-  inline unsigned long update_local_counter(unsigned long _bitColor);
+		  unsigned int *_neighbors, unsigned int _neighborIndex, unsigned int _numNeighbors);
+  inline signed long compete_in_tournament(unsigned int _hash, unsigned int _color, unsigned char *_tournamentArray, unsigned int _successorID);
+  inline void mark_vertex(Vertex *_vertices, unsigned char *_tournamentArray, int * mis_array, unsigned int *_neighbors, signed long _inMIS);
+  inline signed long update_local_counter(unsigned long _bitColor);
 
   void print_tournament(unsigned char *_tournamentArray, unsigned int _vertexID);
 };
