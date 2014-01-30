@@ -41,15 +41,16 @@ void validate_mis(int* mis_array) {
 int main(int argc, char **argv)
 {
   if (argc != 3) {
-    printf("Invalid args. Usage: ./main <file> <algorithm {serial, tournament}>");
+    printf("Invalid args. Usage: ./main <file> <algorithm {serial, tournament}>\n");
   } else {
     string algorithm = argv[2];
     
     if (!(algorithm.compare("serial") == 0 || algorithm.compare("tournament") == 0)) {
-      printf("Invalid argument for algorithm. Should be serial or tournament");
+      printf("Invalid argument for algorithm. Should be serial or tournament\n");
       return 0;
     }
-
+    
+    printf("Loading input graph...\n");
     string inputname = argv[1];
     //sparseRowMajor<int,int> sparse_rep;
     // Parse the graph in .mtx or adjacency list representation.
@@ -64,12 +65,15 @@ int main(int argc, char **argv)
       graph<int> inter = graphFromEdges<int>(edgesFromGraph<int>(readGraphFromFile<int>((char*)inputname.c_str())), true);
       sparse_rep = sparseFromGraph<int>(inter);
     } 
-       
+    
+    printf("Initializing mis_array...\n");
+ 
     int* mis_array = (int*) calloc(sparse_rep.numRows, sizeof(int));
     for (int i = 0; i < sparse_rep.numRows; i++) {
       mis_array[i] = -1;
     }
     
+    printf("Running mis algorithm...\n");
     double color_start = tfk_get_time();
     
     if (algorithm.compare("serial") == 0){
