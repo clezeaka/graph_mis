@@ -19,7 +19,7 @@
 #define SOFTWARE_PREFETCHING_FLAG1 true
 #define WCH_DEBUG false
 #define PRINT_TOURNAMENT 1673
-#define COUNTER_THRESHOLD 512
+#define COUNTER_THRESHOLD 256
 #define NUM_LEAF_MEMBERS 32
 
 inline unsigned int hash_vertex_id(unsigned int _id) {
@@ -42,11 +42,11 @@ inline int log_floor(unsigned int _num) {
 
 struct LeafClass
 {
-  volatile unsigned long bitColor;
+  volatile unsigned long inMIS;
   volatile unsigned int counter;// TODO use int for counter and aux_counter (init counter), use top bit of counter for mutex
   volatile unsigned short mutex;
 
-  inline signed long update_leaf_counter(unsigned long _bitColor);
+  inline signed int update_leaf_counter(unsigned int _inMIS);
 
   void print_leaf();
 };

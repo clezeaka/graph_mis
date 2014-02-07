@@ -16,13 +16,20 @@
 
 
 void validate_mis(int* mis_array) {
+  for (int i = 0; i < sparse_rep.numRows; i++) {
+    assert(mis_array[i] != -1);
+  }
+  
+  //printf("%d\n", sparse_rep.numRows);
   for (int k = 0; k < sparse_rep.numRows; k++) {
-    assert(mis_array[k] != -1);
+    //printf("%d\n", k);
     
     int* neighbors = &sparse_rep.ColIds[sparse_rep.Starts[k]];
     unsigned int degree = (sparse_rep.Starts[k + 1] - sparse_rep.Starts[k]);
     if (mis_array[k]) {
+      assert(mis_array[k] == 1);
       for (int i = 0; i < degree; i++) {
+        //printf("%d\n", neighbors[i]);
         assert(mis_array[neighbors[i]] == 0);
       }
     } else {

@@ -1,41 +1,26 @@
 #include "tournament.h"
 
-inline signed long Vertex::update_local_counter(unsigned long _inMIS)
-{
-    while( true ) {
-        if(__sync_lock_test_and_set(&mutex,1) == 0 ) {
-            if(_inMIS == 1) {
-                mutex = 0;
-                return 0;
-            }
-            counter--;
-            if( counter == 0 ) {
-                mutex = 0;
-                return 1;
-            } else {
-                mutex = 0;
-                return -1;
-            }
-        } else {
-            //while( mutex != 0 );
-        }
-    }
-}
-
-inline signed long LeafClass::update_leaf_counter(unsigned long _inMIS)
+inline signed int Vertex::update_local_counter(unsigned int _inMIS)
 {
     while( true ) {
         if(__sync_lock_test_and_set(&mutex, 1) == 0 ) {
-            if(_inMIS == 1) {
-              counter = 0;
-              mutex = 0;
-              return 0;
-            }
-            if( counter == 1 ) {
+            //if (counter == 0) {
+            //   mutex = 0;
+            //   return -1;
+            //}
+            //if(_inMIS == 1) {
+                //counter == 0;
+                //mutex = 0;
+                //return 0;
+            //}
+
+            finalInMIS |= _inMIS;
+            counter--;
+            if( counter == 0 ) {
                 mutex = 0;
-                return 1;
+                //return 1;
+                return !finalInMIS;
             } else {
-                counter--;
                 mutex = 0;
                 return -1;
             }
@@ -45,9 +30,29 @@ inline signed long LeafClass::update_leaf_counter(unsigned long _inMIS)
     }
 }
 
-inline signed long Vertex::compete_in_tournament(
+inline signed int LeafClass::update_leaf_counter(unsigned int _inMIS)
+{
+    while( true ) {
+        if(__sync_lock_test_and_set(&mutex, 1) == 0 ) {
+            inMIS |= _inMIS;
+
+            counter--;
+            if( counter == 0) {
+                mutex = 0;
+                return !inMIS;
+            } else {
+                mutex = 0;
+                return -1;
+            }
+        } else {
+            //while( mutex != 0 );
+        }
+    }
+}
+
+inline signed int Vertex::compete_in_tournament(
     unsigned int _hash, // of incoming gladiator
-    unsigned int _inMIS,
+    unsigned int _inMIS, // of incoming gladiator
     unsigned char *_tournamentArray,
     unsigned int _successorID)
 {
@@ -63,8 +68,8 @@ inline signed long Vertex::compete_in_tournament(
         LeafClass *leaf = (LeafClass *) &(bitColors[size]);
         _inMIS = leaf[index].update_leaf_counter(_inMIS);
         if( _inMIS != -1 ) { // compete in tournament
-            unsigned int type = 0;
-            if (_inMIS) {
+            unsigned int type;
+            if (!_inMIS) {
                 type = 1; // lazy
             } else {
                 type = 2; // eager
@@ -75,8 +80,8 @@ inline signed long Vertex::compete_in_tournament(
                 if( bitColors[index] != 0 ) {
 
                 } else {
-                    unsigned long getAndSetResult = __sync_lock_test_and_set(&bitColors[index], _inMIS);
-                    if( getAndSetResult != 0 || type == 2) { // Move up in the tournament
+                    unsigned long getAndSetResult = __sync_lock_test_and_set(&bitColors[index], type);
+                    if( getAndSetResult == 1 || type == 2) { // Move up in the tournament
                     
                     } else {
                         return -1;
@@ -86,7 +91,7 @@ inline signed long Vertex::compete_in_tournament(
             return _inMIS;
         }
         else
-            return 0L;
+            return -1;
     }
 }
 
@@ -95,17 +100,17 @@ inline void Vertex::mark_vertex(
     unsigned char *_tournamentArray,
     int * mis_array,
     unsigned int *_neighbors,
-    signed long _inMIS)
+    signed int _inMIS)
 {
-    unsigned char *tournament = &_tournamentArray[(edgeIndex+7)&(~0x07)];
-    if( numPredecessors == 0 ) {
-        finalInMIS = 1;
-        mis_array[vertexID] = 1;
-    }
-    else {
+    //unsigned char *tournament = &_tournamentArray[(edgeIndex+7)&(~0x07)];
+    //if( numPredecessors == 0 ) {
+    //    finalInMIS = 1;
+    //    mis_array[vertexID] = 1;
+    //}
+    //else {
         finalInMIS = _inMIS;
         mis_array[vertexID] = _inMIS;
-    }
+    //}
     unsigned int *successors = &(_neighbors[edgeIndex]);
 
     /*
@@ -124,7 +129,7 @@ inline void Vertex::mark_vertex(
                     __builtin_prefetch(&_vertices[successors[i+PREFETCH_DISTANCE]], 1, 0);
             }
             */
-            signed long inMIS = _vertices[successors[i]].compete_in_tournament(hashValue, finalInMIS, _tournamentArray, successors[i]);
+            signed int inMIS = _vertices[successors[i]].compete_in_tournament(hashValue, _inMIS, _tournamentArray, successors[i]);
             if( inMIS != -1 ) {
                 cilk_spawn _vertices[successors[i]].mark_vertex(_vertices, _tournamentArray, mis_array, _neighbors, inMIS);
             }
@@ -138,7 +143,7 @@ inline void Vertex::mark_vertex(
                     __builtin_prefetch(&_vertices[successors[i+PREFETCH_DISTANCE]], 1, 0);
             }
             */
-            signed long inMIS = _vertices[successors[i]].compete_in_tournament(hashValue, finalInMIS, _tournamentArray, successors[i]);
+            signed int inMIS = _vertices[successors[i]].compete_in_tournament(hashValue, _inMIS, _tournamentArray, successors[i]);
             if( inMIS != -1 ) {
                 _vertices[successors[i]].mark_vertex(_vertices, _tournamentArray, mis_array, _neighbors, inMIS);
             }
@@ -161,7 +166,7 @@ void Vertex::vertex_init(
     numSuccessors = 0;
     mutex = 0;
     counter = 0;
-    finalInMIS = 0L;
+    finalInMIS = 0;
     edgeIndex = _neighborIndex;
     if(_numNeighbors == 0) return;
 
@@ -220,10 +225,24 @@ void Vertex::vertex_init(
 
         for( unsigned int i = 0; i < size; i++ ) {
             if( leaf[i].counter == 0 ) { // we need to pre-populate the tournament in this case
-                unsigned int j = (size + i) >> 1;
-                while( bitColors[j] > 0 )
-                    j = j >> 1;
-                bitColors[j] = OVERFLOW_BIT_COLOR;
+                unsigned int j = size + i;
+                //while( bitColors[j] > 0 )
+                //    j = j >> 1;
+                //bitColors[j] = 1;
+
+                while( j > 1 ) { // Better condition?
+                    j = (j >> 1);
+                    if( bitColors[j] != 0 ) {
+
+                    } else {
+                        unsigned long getAndSetResult = __sync_lock_test_and_set(&bitColors[j], 1);
+                        if( getAndSetResult != 0 ) { // Move up in the tournament
+                    
+                        } else {
+                            break;
+                        }
+                    }
+                }
             }
         }
     }
@@ -260,6 +279,6 @@ void Vertex::print_tournament(unsigned char *_tournamentArray, unsigned int _ver
 }
 
 void LeafClass::print_leaf() {
-    printf("%u %u %#lx   ", mutex, counter, bitColor);
+    printf("%u %u %#lx   ", mutex, counter, inMIS);
 }
 

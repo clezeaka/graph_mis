@@ -26,7 +26,7 @@ void compute_mis_tournament(int* mis_array, Vertex *__vertices, unsigned char *_
                 __tournamentArray,
                 mis_array,
                 (unsigned int *) sparse_rep.ColIds,
-                1L);
+                1);
         }
     }
 

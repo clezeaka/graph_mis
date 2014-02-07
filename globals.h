@@ -51,18 +51,18 @@ class Vertex
   unsigned int hashValue;
   unsigned int numPredecessors;
   unsigned int numSuccessors;
-  volatile unsigned long finalInMIS;
+  volatile unsigned int finalInMIS;
   unsigned int edgeIndex;
-  volatile short counter;
+  volatile uint64_t counter;
   unsigned char logSize;
   volatile unsigned char mutex;
 
 
   void vertex_init(Vertex *_vertices, unsigned char *_tournamentArray, unsigned int _vertexID,
 		  unsigned int *_neighbors, unsigned int _neighborIndex, unsigned int _numNeighbors);
-  inline signed long compete_in_tournament(unsigned int _hash, unsigned int _color, unsigned char *_tournamentArray, unsigned int _successorID);
-  inline void mark_vertex(Vertex *_vertices, unsigned char *_tournamentArray, int * mis_array, unsigned int *_neighbors, signed long _inMIS);
-  inline signed long update_local_counter(unsigned long _bitColor);
+  inline signed int compete_in_tournament(unsigned int _hash, unsigned int _inMIS, unsigned char *_tournamentArray, unsigned int _successorID);
+  inline void mark_vertex(Vertex *_vertices, unsigned char *_tournamentArray, int * mis_array, unsigned int *_neighbors, signed int _inMIS);
+  inline signed int update_local_counter(unsigned int _inMIS);
 
   void print_tournament(unsigned char *_tournamentArray, unsigned int _vertexID);
 };
