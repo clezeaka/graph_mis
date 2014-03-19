@@ -1,4 +1,4 @@
-ompiled Object files
+compiled Object files
 *.slo
 *.lo
 *.o
@@ -17,3 +17,5 @@ test_logs/
 benchmark-graphs/
 main
 *.out
+
+.DS_STORE
