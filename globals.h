@@ -43,7 +43,8 @@ inline int find_open_color_bit(unsigned long _color){
 }
 
 sparseRowMajor<int,int> sparse_rep;
-int *orderedVertices;
+unsigned int* __restrict order;
+unsigned int* __restrict orderedVertices;
 
 class Vertex
 {

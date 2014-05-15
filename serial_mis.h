@@ -6,7 +6,7 @@
 
 void serial_mis(int* mis_array) {
   for (int k = 0; k < sparse_rep.numRows; k++) {
-    int vid = get_order_index(k);
+    int vid = orderedVertices[i];
 
     assert(mis_array[vid] != 1);
     if (mis_array[vid] == 0) {

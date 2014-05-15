@@ -36,6 +36,17 @@ inline unsigned int mm3hash(unsigned int i){
 	return i;
 }
 
+// Comparison function for sorting the colids in a row.
+inline int compare (const void * a, const void * b)
+{
+  //return ( order[*(int*)a] - order[*(int*)b] );
+  if ( order[*(unsigned int*)b] - order[*(unsigned int*)a] != 0) {
+    return order[*(unsigned int*)b] - order[*(unsigned int*)a];
+  } else {
+    return *(unsigned int*)a-*(unsigned int*)b;
+  }
+}
+
 /**
  * Default method is INPUT ordering
  */

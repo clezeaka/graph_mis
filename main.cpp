@@ -72,6 +72,16 @@ int main(int argc, char **argv)
       graph<int> inter = graphFromEdges<int>(edgesFromGraph<int>(readGraphFromFile<int>((char*)inputname.c_str())), true);
       sparse_rep = sparseFromGraph<int>(inter);
     } 
+	
+    printf("Setting up random ordering...\n");
+	orderedVertices = (unsigned int*) malloc(sizeof(unsigned int) * sparse_rep.numRows);
+	order = (unsigned int*) malloc(sizeof(unsigned int)*(sparse_rep.numRows + 1));
+	for (int i = 0; i < sparse_rep.numRows; i++) {
+		orderedVertices[i] = i;
+		//order[i] = mm3hash(i);
+		order[i] = rand();
+	}
+	qsort(orderedVertices, sparse_rep.numRows, sizeof(unsigned int), &compare);
     
     printf("Initializing mis_array...\n");
  
