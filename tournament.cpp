@@ -66,10 +66,10 @@ inline signed int Vertex::compete_in_tournament(
         unsigned long *bitColors = (unsigned long *) tournament;
         unsigned int index = (_hash & (size - 1));
         LeafClass *leaf = (LeafClass *) &(bitColors[size]);
-        _inMIS = leaf[index].update_leaf_counter(_inMIS);
-        if( _inMIS != -1 ) { // compete in tournament
+        signed long meInMIS = leaf[index].update_leaf_counter(_inMIS);
+        if( meInMIS != -1 ) { // compete in tournament
             unsigned int type;
-            if (!_inMIS) {
+            if (meInMIS == 1) {
                 type = 1; // lazy
             } else {
                 type = 2; // eager
@@ -77,21 +77,23 @@ inline signed int Vertex::compete_in_tournament(
             index += size;
             while( index > 1 ) {
                 index = (index >> 1);
-                if( bitColors[index] != 0 ) {
+                unsigned long getAndSetResult = __sync_lock_test_and_set(&bitColors[index], type);
+                if( getAndSetResult == 1 ) {
 
-                } else {
-                    unsigned long getAndSetResult = __sync_lock_test_and_set(&bitColors[index], type);
-                    if( getAndSetResult == 1 || type == 2) { // Move up in the tournament
+                } else if ( getAndSetResult == 2 ){
+                    return -1;
+                } else { // I'm the first there
+                    if( type == 2 ) { // Move up in the tournament
                     
                     } else {
                         return -1;
                     }
                 }
             }
-            return _inMIS;
-        }
-        else
+            return meInMIS;
+        } else {
             return -1;
+        }
     }
 }
 
@@ -113,22 +115,18 @@ inline void Vertex::mark_vertex(
     //}
     unsigned int *successors = &(_neighbors[edgeIndex]);
 
-    /*
     if( SOFTWARE_PREFETCHING_FLAG1 ) {
         for( unsigned int i = 0; i < MIN(numSuccessors,PREFETCH_DISTANCE); i++ ) {
             __builtin_prefetch(&_vertices[successors[i]], 1, 0);
         }
     }
-    */
 
     if( numSuccessors < CILK_FOR_THRESHOLD ) {
         for( int i = 0; i < numSuccessors; i++ ) {
-            /*
             if( SOFTWARE_PREFETCHING_FLAG1 ) {
                 if( i + PREFETCH_DISTANCE < numSuccessors )
                     __builtin_prefetch(&_vertices[successors[i+PREFETCH_DISTANCE]], 1, 0);
             }
-            */
             signed int inMIS = _vertices[successors[i]].compete_in_tournament(hashValue, _inMIS, _tournamentArray, successors[i]);
             if( inMIS != -1 ) {
                 cilk_spawn _vertices[successors[i]].mark_vertex(_vertices, _tournamentArray, mis_array, _neighbors, inMIS);
@@ -137,12 +135,10 @@ inline void Vertex::mark_vertex(
     }
     else {
         cilk_for( int i = 0; i < numSuccessors; i++ ) {
-            /*
             if( SOFTWARE_PREFETCHING_FLAG1 ) {
                 if( i + PREFETCH_DISTANCE < numSuccessors )
                     __builtin_prefetch(&_vertices[successors[i+PREFETCH_DISTANCE]], 1, 0);
             }
-            */
             signed int inMIS = _vertices[successors[i]].compete_in_tournament(hashValue, _inMIS, _tournamentArray, successors[i]);
             if( inMIS != -1 ) {
                 _vertices[successors[i]].mark_vertex(_vertices, _tournamentArray, mis_array, _neighbors, inMIS);
@@ -171,6 +167,7 @@ void Vertex::vertex_init(
     if(_numNeighbors == 0) return;
 
     myOrder = _vertexID;
+    //myOrder = orderedVertices[_vertexID];
 
     // Partition predecessors and successors
     unsigned int *successor = &_neighbors[_neighborIndex];
@@ -181,6 +178,7 @@ void Vertex::vertex_init(
         unsigned int hisOrder; // = ORDER(nbr);
         unsigned int hisIndex = nbr;
         hisOrder = hisIndex;
+        //hisOrder = orderedVertices[hisIndex];
 
         if( myOrder < hisOrder || ((hisOrder == myOrder) && (hisIndex < _vertexID))) {
             *successor = *predecessor;
@@ -190,9 +188,10 @@ void Vertex::vertex_init(
         } else {
             successor++;
             numSuccessors++;
-
         }
     }
+
+    assert(numPredecessors + numSuccessors == _numNeighbors);
 
     if( _numNeighbors <= COUNTER_THRESHOLD ) {
         counter += numPredecessors;
@@ -200,6 +199,7 @@ void Vertex::vertex_init(
     }
     else {
         logSize = log_floor(numPredecessors/NUM_LEAF_MEMBERS);
+        //printf("%d \n", logSize);
         unsigned int size = (1 << logSize);
         unsigned int mask = size - 1;
         // we get 1 byte per neighbor in the tournament array...
@@ -224,6 +224,7 @@ void Vertex::vertex_init(
         }
 
         for( unsigned int i = 0; i < size; i++ ) {
+            //leaf[i].inMIS = 0;
             if( leaf[i].counter == 0 ) { // we need to pre-populate the tournament in this case
                 unsigned int j = size + i;
                 //while( bitColors[j] > 0 )
