@@ -2,50 +2,78 @@
 
 inline signed int Vertex::update_local_counter(unsigned int _inMIS)
 {
+    while( mutex != 0 ) {
+        if (counter == 0) {
+          return -1;
+        }
+    }
     while( true ) {
         if(__sync_lock_test_and_set(&mutex, 1) == 0 ) {
-            //if (counter == 0) {
-            //   mutex = 0;
-            //   return -1;
-            //}
-            //if(_inMIS == 1) {
-                //counter == 0;
-                //mutex = 0;
-                //return 0;
-            //}
+            if (counter == 0) {
+               mutex = 0;
+               return -1;
+            }
 
             finalInMIS |= _inMIS;
+            if(finalInMIS == 1) {
+                counter = 0;
+                mutex = 0;
+                return 0;
+            }
+
             counter--;
             if( counter == 0 ) {
                 mutex = 0;
-                //return 1;
-                return !finalInMIS;
+                return 1;
             } else {
                 mutex = 0;
                 return -1;
             }
         } else {
-            //while( mutex != 0 );
+            while( mutex != 0 ) {
+                if (counter == 0) {
+                    return -1;
+                }
+            }
         }
     }
 }
 
 inline signed int LeafClass::update_leaf_counter(unsigned int _inMIS)
 {
+    while( mutex != 0 ) {
+       if (counter == 0) {
+          return -1;
+       }
+    }
     while( true ) {
         if(__sync_lock_test_and_set(&mutex, 1) == 0 ) {
+            if (counter == 0) {
+                mutex = 0;
+                return -1;
+            }
+
             inMIS |= _inMIS;
+            if (inMIS == 1) {
+                counter = 0;
+                mutex = 0;
+                return 0;
+            }
 
             counter--;
             if( counter == 0) {
                 mutex = 0;
-                return !inMIS;
+                return 1;
             } else {
                 mutex = 0;
                 return -1;
             }
         } else {
-            //while( mutex != 0 );
+            while( mutex != 0 ) {
+                if (counter == 0) {
+                  return -1;
+                }
+            }
         }
     }
 }
@@ -59,14 +87,23 @@ inline signed int Vertex::compete_in_tournament(
     unsigned int numNeighbors = sparse_rep.Starts[_successorID + 1] - sparse_rep.Starts[_successorID];
 
     if( numNeighbors <= COUNTER_THRESHOLD ) { // just use the local counter
+        if (counter == 0) {
+          return -1;
+        }
         return update_local_counter(_inMIS);
     } else { //full tournament
+        //printf("in tourney");
         unsigned int size = 1 << (unsigned int) logSize;
         unsigned char *tournament = &_tournamentArray[(edgeIndex+7)&(~0x07)];
         unsigned long *bitColors = (unsigned long *) tournament;
         unsigned int index = (_hash & (size - 1));
         LeafClass *leaf = (LeafClass *) &(bitColors[size]);
-        signed long meInMIS = leaf[index].update_leaf_counter(_inMIS);
+        signed long meInMIS;
+        if (leaf[index].counter == 0) {
+            return -1;
+        } else {
+            meInMIS = leaf[index].update_leaf_counter(_inMIS);
+        }
         if( meInMIS != -1 ) { // compete in tournament
             unsigned int type;
             if (meInMIS == 1) {
@@ -77,6 +114,9 @@ inline signed int Vertex::compete_in_tournament(
             index += size;
             while( index > 1 ) {
                 index = (index >> 1);
+                 if ( bitColors[index] == 2 ){
+                    return -1;
+                } 
                 unsigned long getAndSetResult = __sync_lock_test_and_set(&bitColors[index], type);
                 if( getAndSetResult == 1 ) {
 
@@ -111,6 +151,7 @@ inline void Vertex::mark_vertex(
     //}
     //else {
         finalInMIS = _inMIS;
+        //assert(mis_array[vertexID] == -1);
         mis_array[vertexID] = _inMIS;
     //}
     unsigned int *successors = &(_neighbors[edgeIndex]);
@@ -194,7 +235,7 @@ void Vertex::vertex_init(
     assert(numPredecessors + numSuccessors == _numNeighbors);
 
     if( _numNeighbors <= COUNTER_THRESHOLD ) {
-        counter += numPredecessors;
+        counter = numPredecessors;
         return;
     }
     else {
