@@ -19,8 +19,8 @@
 #define SOFTWARE_PREFETCHING_FLAG1 true
 #define WCH_DEBUG false
 #define PRINT_TOURNAMENT 1673
-#define COUNTER_THRESHOLD 256
-#define NUM_LEAF_MEMBERS 8
+#define COUNTER_THRESHOLD 512
+#define NUM_LEAF_MEMBERS 64
 
 inline unsigned int hash_vertex_id(unsigned int _id) {
   const unsigned int randVal = 0xF1807D63;

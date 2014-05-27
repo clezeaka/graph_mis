@@ -46,6 +46,10 @@ inline signed int Vertex::update_local_counter(unsigned int _inMIS)
 
 inline signed int LeafClass::update_leaf_counter(unsigned int _inMIS)
 {
+    if (counter == 0) {
+        return -1;
+    }
+    
     while( true ) {
         if (counter == 0) {
             return -1;
@@ -100,12 +104,12 @@ inline signed int Vertex::compete_in_tournament(
         unsigned long *bitColors = (unsigned long *) tournament;
         unsigned int index = (_hash & (size - 1));
         LeafClass *leaf = (LeafClass *) &(bitColors[size]);
-        signed long meInMIS;
-        if (leaf[index].counter == 0) {
-            return -1;
-        } else {
-            meInMIS = leaf[index].update_leaf_counter(_inMIS);
-        }
+        //signed long meInMIS;
+        //if (leaf[index].counter == 0) {
+        //    return -1;
+        //} else {
+        signed long meInMIS = leaf[index].update_leaf_counter(_inMIS);
+        //}
         if( meInMIS != -1 ) { // compete in tournament
             unsigned long type;
             if (meInMIS == 1) {
@@ -120,12 +124,6 @@ inline signed int Vertex::compete_in_tournament(
                 if( getAndSetResult == 1 ) {
 
                 } else if ( getAndSetResult == 2 ){
-                    if (type == 1) {
-                      printf("goofing \n");
-                     if (finalInMIS == 1) {
-                          printf("final set but i'm here \n");
-                        }
-                    }
                     return -1;
                 } else { // I'm the first there
                     if( type == 1 ) { // type 2 moves up in the tournament
@@ -155,10 +153,10 @@ inline void Vertex::mark_vertex(
     //}
     //else {
         //printf("%d %d %d\n", mis_array[vertexID], _inMIS, vertexID);
-        if (mis_array[vertexID] != -1) {
-          printf("Stopping it\n");
-          return;
-        }
+        //if (mis_array[vertexID] != -1) {
+        //  printf("Stopping it\n");
+        //  return;
+        //}
         //finalInMIS = _inMIS;
         //printf("%d %d %d\n", mis_array[vertexID], _inMIS, vertexID);
         assert(mis_array[vertexID] == -1);
@@ -271,8 +269,9 @@ void Vertex::vertex_init(
         predecessor = &_neighbors[_neighborIndex + numSuccessors];
         LeafClass *leaf = (LeafClass *) &(bitColors[size]);
 
-        for (unsigned int i = 0; i < numPredecessors; i++) {
-            leaf[hash_vertex_id(predecessor[i]) & mask].counter++;
+        cilk_for (unsigned int i = 0; i < numPredecessors; i++) {
+            __sync_fetch_and_add( &leaf[hash_vertex_id(predecessor[i]) & mask].counter, 1 );
+            //leaf[hash_vertex_id(predecessor[i]) & mask].counter++;
         }
 
         for( unsigned int i = 0; i < size; i++ ) {
