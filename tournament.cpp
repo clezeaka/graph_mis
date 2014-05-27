@@ -2,20 +2,26 @@
 
 inline signed int Vertex::update_local_counter(unsigned int _inMIS)
 {
-    while( mutex != 0 ) {
-        if (counter == 0) {
-          return -1;
-        }
+    if (counter == 0) {
+    // if (vertexID == 1)   printf("Counter already zero >>>>>>>>>>>>>> \n");
+       return -1;
     }
+
     while( true ) {
+        if (counter == 0) {
+           //if (vertexID == 1)   printf("Counter already zero >>>>>>>>>>>>>>>>>>> \n");
+            return -1;
+        }
         if(__sync_lock_test_and_set(&mutex, 1) == 0 ) {
             if (counter == 0) {
                mutex = 0;
+               //if (vertexID == 1)  printf("Counter already zero >>>>>>>>>>>>>>>>>>>>>>> \n");
                return -1;
             }
-
+            
             finalInMIS |= _inMIS;
             if(finalInMIS == 1) {
+                //if (vertexID == 1)  printf("finished early skipped: %d \n", counter);
                 counter = 0;
                 mutex = 0;
                 return 0;
@@ -23,17 +29,16 @@ inline signed int Vertex::update_local_counter(unsigned int _inMIS)
 
             counter--;
             if( counter == 0 ) {
+                //if (vertexID == 1)  printf("Finished I am in!!!!! \n");
                 mutex = 0;
                 return 1;
             } else {
                 mutex = 0;
+                //if (vertexID == 1)  printf("Decrementing---------- \n");
                 return -1;
             }
         } else {
             while( mutex != 0 ) {
-                if (counter == 0) {
-                    return -1;
-                }
             }
         }
     }
@@ -41,18 +46,17 @@ inline signed int Vertex::update_local_counter(unsigned int _inMIS)
 
 inline signed int LeafClass::update_leaf_counter(unsigned int _inMIS)
 {
-    while( mutex != 0 ) {
-       if (counter == 0) {
-          return -1;
-       }
-    }
     while( true ) {
+        if (counter == 0) {
+            return -1;
+        }
+
         if(__sync_lock_test_and_set(&mutex, 1) == 0 ) {
             if (counter == 0) {
                 mutex = 0;
                 return -1;
             }
-
+            
             inMIS |= _inMIS;
             if (inMIS == 1) {
                 counter = 0;
@@ -70,9 +74,6 @@ inline signed int LeafClass::update_leaf_counter(unsigned int _inMIS)
             }
         } else {
             while( mutex != 0 ) {
-                if (counter == 0) {
-                  return -1;
-                }
             }
         }
     }
@@ -84,12 +85,13 @@ inline signed int Vertex::compete_in_tournament(
     unsigned char *_tournamentArray,
     unsigned int _successorID)
 {
+    if (finalInMIS == 1) {
+      //printf("final set \n");
+      return -1;
+    }
     unsigned int numNeighbors = sparse_rep.Starts[_successorID + 1] - sparse_rep.Starts[_successorID];
 
     if( numNeighbors <= COUNTER_THRESHOLD ) { // just use the local counter
-        if (counter == 0) {
-          return -1;
-        }
         return update_local_counter(_inMIS);
     } else { //full tournament
         //printf("in tourney");
@@ -105,7 +107,7 @@ inline signed int Vertex::compete_in_tournament(
             meInMIS = leaf[index].update_leaf_counter(_inMIS);
         }
         if( meInMIS != -1 ) { // compete in tournament
-            unsigned int type;
+            unsigned long type;
             if (meInMIS == 1) {
                 type = 1; // lazy
             } else {
@@ -114,22 +116,24 @@ inline signed int Vertex::compete_in_tournament(
             index += size;
             while( index > 1 ) {
                 index = (index >> 1);
-                 if ( bitColors[index] == 2 ){
-                    return -1;
-                } 
                 unsigned long getAndSetResult = __sync_lock_test_and_set(&bitColors[index], type);
                 if( getAndSetResult == 1 ) {
 
                 } else if ( getAndSetResult == 2 ){
+                    if (type == 1) {
+                      printf("goofing \n");
+                     if (finalInMIS == 1) {
+                          printf("final set but i'm here \n");
+                        }
+                    }
                     return -1;
                 } else { // I'm the first there
-                    if( type == 2 ) { // Move up in the tournament
-                    
-                    } else {
+                    if( type == 1 ) { // type 2 moves up in the tournament
                         return -1;
                     }
                 }
             }
+            finalInMIS = 1;
             return meInMIS;
         } else {
             return -1;
@@ -150,8 +154,14 @@ inline void Vertex::mark_vertex(
     //    mis_array[vertexID] = 1;
     //}
     //else {
-        finalInMIS = _inMIS;
-        //assert(mis_array[vertexID] == -1);
+        //printf("%d %d %d\n", mis_array[vertexID], _inMIS, vertexID);
+        if (mis_array[vertexID] != -1) {
+          printf("Stopping it\n");
+          return;
+        }
+        //finalInMIS = _inMIS;
+        //printf("%d %d %d\n", mis_array[vertexID], _inMIS, vertexID);
+        assert(mis_array[vertexID] == -1);
         mis_array[vertexID] = _inMIS;
     //}
     unsigned int *successors = &(_neighbors[edgeIndex]);
@@ -207,8 +217,8 @@ void Vertex::vertex_init(
     edgeIndex = _neighborIndex;
     if(_numNeighbors == 0) return;
 
-    myOrder = _vertexID;
-    //myOrder = orderedVertices[_vertexID];
+    //myOrder = _vertexID;
+    myOrder = orderedVertices[_vertexID];
 
     // Partition predecessors and successors
     unsigned int *successor = &_neighbors[_neighborIndex];
@@ -218,8 +228,8 @@ void Vertex::vertex_init(
         unsigned int nbr = *successor;
         unsigned int hisOrder; // = ORDER(nbr);
         unsigned int hisIndex = nbr;
-        hisOrder = hisIndex;
-        //hisOrder = orderedVertices[hisIndex];
+        //hisOrder = hisIndex;
+        hisOrder = orderedVertices[hisIndex];
 
         if( myOrder < hisOrder || ((hisOrder == myOrder) && (hisIndex < _vertexID))) {
             *successor = *predecessor;
@@ -235,7 +245,8 @@ void Vertex::vertex_init(
     assert(numPredecessors + numSuccessors == _numNeighbors);
 
     if( _numNeighbors <= COUNTER_THRESHOLD ) {
-        counter = numPredecessors;
+        counter += numPredecessors;
+        //if (vertexID == 1) printf("Num preds: %d \n", numPredecessors);
         return;
     }
     else {

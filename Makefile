@@ -1,7 +1,7 @@
 CC=gcc
 CFLAGS=
 CILK=g++
-CILKFLAGS= -Wall -DCILKP -g -O2 -fcilkplus -lcilkrts -gdwarf-2
+CILKFLAGS= -w -DCILKP -g -O2 -fcilkplus -lcilkrts -gdwarf-2
 LDFLAGS= -L$(CURDIR)
 #AR=ar
 ifneq ($(CILKOFF),1)

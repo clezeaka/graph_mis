@@ -13,14 +13,14 @@
 #include "graphIO.h"
 #include "ordering.h"
 #define ALL_ONES 0xFFFFFFFFFFFFFFFF
-#define CILK_FOR_THRESHOLD 512
+#define CILK_FOR_THRESHOLD 128
 #define PREFETCH_DISTANCE 4
 #define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
 #define SOFTWARE_PREFETCHING_FLAG1 true
 #define WCH_DEBUG false
 #define PRINT_TOURNAMENT 1673
 #define COUNTER_THRESHOLD 256
-#define NUM_LEAF_MEMBERS 32
+#define NUM_LEAF_MEMBERS 8
 
 inline unsigned int hash_vertex_id(unsigned int _id) {
   const unsigned int randVal = 0xF1807D63;

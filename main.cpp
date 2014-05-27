@@ -74,14 +74,15 @@ int main(int argc, char **argv)
     } 
 	
     printf("Setting up random ordering...\n");
-	orderedVertices = (unsigned int*) malloc(sizeof(unsigned int) * sparse_rep.numRows);
-	order = (unsigned int*) malloc(sizeof(unsigned int)*(sparse_rep.numRows + 1));
-	for (int i = 0; i < sparse_rep.numRows; i++) {
-		orderedVertices[i] = i;
-		//order[i] = mm3hash(i);
-		order[i] = rand();
-	}
-	qsort(orderedVertices, sparse_rep.numRows, sizeof(unsigned int), &compare);
+  	orderedVertices = (unsigned int*) malloc(sizeof(unsigned int) * sparse_rep.numRows);
+  	order = (unsigned int*) malloc(sizeof(unsigned int)*(sparse_rep.numRows + 1));
+  	for (int i = 0; i < sparse_rep.numRows; i++) {
+	  	orderedVertices[i] = i;
+	  	//order[i] = mm3hash(i);
+	  	order[i] = rand();
+	  	//order[i] = i;
+  	}
+  	//qsort(orderedVertices, sparse_rep.numRows, sizeof(unsigned int), &compare);
     
     printf("Initializing mis_array...\n");
  
@@ -105,7 +106,7 @@ int main(int argc, char **argv)
     }
     
     double color_end = tfk_get_time();
-    printf("Time spent: %f \n", (color_end - color_start));
+    printf("Time spent total: %f \n", (color_end - color_start));
     
     validate_mis(mis_array);
   }
